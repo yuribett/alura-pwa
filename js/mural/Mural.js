@@ -1,24 +1,19 @@
 const Mural = (function(_render, Filtro){
     "use strict"
-    let cartoes = []
-    if(localStorage.getItem("cartoes")) {
-        cartoes = JSON.parse(localStorage.getItem("cartoes")).map(cartaoLocal => new Cartao(cartaoLocal.conteudo, cartaoLocal.tipo))
-    }
 
-    cartoes.forEach(cartao => {
-        preparaCartao(cartao)
-    })
+    let cartoes = pegaCartoesUsuario()
 
     const render = () => _render({cartoes: cartoes, filtro: Filtro.tagsETexto});
     render()
+
     Filtro.on("filtrado", render)
 
     function preparaCartao(cartao){
-        const urls = Cartao.pegaImagens(cartao)
-        urls.forEach(url => {
-            fetch(url).then(response => {
+        const urlsImagens = Cartao.pegaImagens(cartao)
+        urlsImagens.forEach(url => {
+            fetch(url).then(resposta => {
                 caches.open("ceep-imagens").then(cache => {
-                    cache.put(url, response)
+                    cache.put(url, resposta)
                 })
             })
         })
@@ -32,11 +27,34 @@ const Mural = (function(_render, Filtro){
         })
     }
 
-    function salvaCartoes(){
-        localStorage.setItem("cartoes", JSON.stringify(
+    function pegaCartoesUsuario(){
+        let cartoesLocal = JSON.parse(localStorage.getItem(usuario))
+        if(cartoesLocal){
+            return cartoesLocal.map(cartaoLocal => {
+                let cartao = new Cartao(cartaoLocal.conteudo, cartaoLocal.tipo)
+                preparaCartao(cartao)
+                return cartao
+            })
+        } else {
+            return []
+        }
+    }
+
+    function salvaCartoes (){
+        localStorage.setItem(usuario, JSON.stringify(
             cartoes.map(cartao => ({conteudo: cartao.conteudo, tipo: cartao.tipo}))
         ))
     }
+
+    login.on("login", ()=>{
+        cartoes = pegaCartoesUsuario()
+        render()
+    })
+
+    login.on("logout", ()=> {
+        cartoes = []
+        render()
+    })
 
     function adiciona(cartao){
         if(logado){
@@ -44,7 +62,6 @@ const Mural = (function(_render, Filtro){
             salvaCartoes()
             cartao.on("mudanca.**", render)
             preparaCartao(cartao)
-
             render()
             return true
         } else {
